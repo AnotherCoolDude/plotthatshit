@@ -4,23 +4,35 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"math"
 	"os"
+	"sort"
+	"strconv"
+
+	"github.com/Arafatk/glot"
 )
 
 func main() {
 	defer fmt.Println("\nleaving main")
-	readCSV("/Users/christianhovenbitzer/go/src/github.com/AnotherCoolDude/plotthatshit/heartbeat.csv")
+	col := readCSV("/Users/christianhovenbitzer/go/src/github.com/AnotherCoolDude/plotthatshit/heartbeat.csv")
 
-	/* glot, err := glot.NewPlot(2, false, true)
+	xValues := []float64{}
+	yValues := []int{}
+	for _, u := range *col.getID("P01").data {
+		xValues = append(xValues, u.time)
+		yValues = append(yValues, u.value)
+	}
+
+	glot, err := glot.NewPlot(2, false, true)
 	handleErr(err)
 	points := [][]float64{{10, 33, 55}, {4, 6, 8}}
-	glot.AddPointGroup("Heartbeat Timeline", "points", points)
+	glot.AddPointGroup("Heartbeat Timeline", "linepoints", points)
 	glot.SetXLabel("X-Achsis")
 	glot.SetYLabel("Y-Achsis")
-	glot.SetXrange(0, len(points[0]))
-	glot.SetYrange(0, len(points[1]))
+	glot.SetXrange(0, int(math.Round(maxFloatSlice(xValues))))
+	glot.SetYrange(0, maxIntSlice(yValues))
 
-	glot.SavePlot("plot.png") */
+	glot.SavePlot("plot.png")
 }
 
 // structs
@@ -34,13 +46,13 @@ type user struct {
 }
 
 type heartBeatData struct {
-	// maps a value to a time, e.g. heatBeat[68] = 3.56
-	heartBeat map[int]int
+	value int
+	time  float64
 }
 
 // funcs
 
-func readCSV(filename string) {
+func readCSV(filename string) userCollection {
 
 	file, err := os.Open(filename)
 
@@ -57,6 +69,11 @@ func readCSV(filename string) {
 	reader.Comment = '#'
 
 	recs := [][]string{}
+
+	col := userCollection{
+		userColl: &[]user{},
+	}
+
 	if err == nil {
 		for {
 			//[value, Proband, Zeit]
@@ -70,11 +87,31 @@ func readCSV(filename string) {
 			recs = append(recs, record)
 		}
 	}
-	user := []user{&[]heartBeatData{}}
-	for i, r := range recs {
-		fmt.Printf("record %d: \n %v\n", i, r)
+	for _, r := range recs {
+		if !col.contains(r[1]) {
+			newU := user{
+				id:   r[1],
+				data: &[]heartBeatData{},
+			}
+			*col.userColl = append(*col.userColl, newU)
+		}
+		v, _ := strconv.Atoi(r[0])
+		t, _ := strconv.ParseFloat(r[2], 64)
+		newB := heartBeatData{
+			value: v,
+			time:  t,
+		}
+		*col.getID(r[1]).data = append(*col.getID(r[1]).data, newB)
+
+		//fmt.Printf("record %d: \n %v\n", i, r)
 
 	}
+	for _, u := range *col.userColl {
+		fmt.Printf("userid: %s, dataamount: %d\n", u.id, len(*u.data))
+	}
+
+	return col
+
 }
 
 // helper
@@ -85,13 +122,30 @@ func handleErr(err error) {
 	}
 }
 
-func newCollection() userCollection {
+func (col *userCollection) contains(id string) bool {
+	for _, u := range *col.userColl {
+		if u.id == id {
+			return true
+		}
+	}
+	return false
+}
 
-	user := user{
-		id:   "",
-		data: &[]heartBeatData{},
+func (col *userCollection) getID(id string) *user {
+	for _, u := range *col.userColl {
+		if u.id == id {
+			return &u
+		}
 	}
-	return userCollection{
-		userColl: &[]user,
-	}
+	return nil
+}
+
+func maxIntSlice(v []int) int {
+	sort.Ints(v)
+	return v[len(v)-1]
+}
+
+func maxFloatSlice(v []float64) float64 {
+	sort.Float64s(v)
+	return v[len(v)-1]
 }
