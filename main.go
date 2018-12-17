@@ -4,7 +4,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -16,21 +15,31 @@ func main() {
 	defer fmt.Println("\nleaving main")
 	col := readCSV("/Users/christianhovenbitzer/go/src/github.com/AnotherCoolDude/plotthatshit/heartbeat.csv")
 
-	xValues := []float64{}
-	yValues := []int{}
-	for _, u := range *col.getID("P01").data {
-		xValues = append(xValues, u.time)
-		yValues = append(yValues, u.value)
-	}
-
 	glot, err := glot.NewPlot(2, false, true)
 	handleErr(err)
-	points := [][]float64{{10, 33, 55}, {4, 6, 8}}
-	glot.AddPointGroup("Heartbeat Timeline", "linepoints", points)
-	glot.SetXLabel("X-Achsis")
-	glot.SetYLabel("Y-Achsis")
-	glot.SetXrange(0, int(math.Round(maxFloatSlice(xValues))))
-	glot.SetYrange(0, maxIntSlice(yValues))
+
+	glot.SetTitle("Auswertung")
+	glot.SetXLabel("Zeit in Sekunden [s]")
+	glot.SetYLabel("Herzschlag in Schlägen pro Minute [bpm]")
+	glot.SetXrange(0, 250)
+	glot.SetYrange(40, 100)
+
+	for _, p := range *col.userColl {
+		if p.id == "" || p.id == "Proband" {
+			continue
+		}
+		xValues := []float64{}
+		yValues := []float64{}
+		for _, u := range *col.getID(p.id).data {
+			xValues = append(xValues, u.time)
+			yValues = append(yValues, float64(u.value))
+		}
+		data := [][]float64{
+			xValues,
+			yValues,
+		}
+		glot.AddPointGroup(p.id, "lines", data)
+	}
 
 	glot.SavePlot("plot.png")
 }
