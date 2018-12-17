@@ -8,14 +8,45 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/Arafatk/glot"
+	"gonum.org/v1/plot/plotter"
+
+	"gonum.org/v1/plot"
 )
 
 func main() {
 	defer fmt.Println("\nleaving main")
 	col := readCSV("/Users/christianhovenbitzer/go/src/github.com/AnotherCoolDude/plotthatshit/heartbeat.csv")
 
-	glot, err := glot.NewPlot(2, false, true)
+	plot, err := plot.New()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	userMap := col.getUserMap()
+	xys := make(plotter.XYs, len(userMap["P01"][0]))
+	for user, coords := range userMap {
+		if user == "" || user == "Proband" {
+			continue
+		}
+
+		fmt.Println(user)
+		for i := range coords[0] {
+			fmt.Printf("X Value: %f02, Y Value: %f02\n", coords[0][i], coords[1][i])
+			xys[i].X = coords[0][i]
+			xys[i].Y = coords[1][i]
+		}
+		print(xys)
+	}
+	line, err := plotter.NewLine(xys)
+	if err != nil {
+		fmt.Println(err)
+	}
+	plot.Add(line)
+
+	savePlot(plot)
+	//line, err := plotter.NewLine()
+
+	/* glot, err := glot.NewPlot(2, false, true)
 	handleErr(err)
 
 	glot.SetTitle("Auswertung")
@@ -41,7 +72,7 @@ func main() {
 		glot.AddPointGroup(p.id, "lines", data)
 	}
 
-	glot.SavePlot("plot.png")
+	glot.SavePlot("plot.png") */
 }
 
 // structs
@@ -121,6 +152,44 @@ func readCSV(filename string) userCollection {
 
 	return col
 
+}
+
+func savePlot(plot *plot.Plot) {
+	wt, err := plot.WriterTo(512, 512, "png")
+	if err != nil {
+		fmt.Println(err)
+	}
+	f, err := os.Create("out.png")
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer f.Close()
+	_, err = wt.WriteTo(f)
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+func (col *userCollection) getUserMap() map[string][][]float64 {
+	uMap := map[string][][]float64{}
+
+	for _, p := range *col.userColl {
+		if p.id == "" || p.id == "Proband" {
+			continue
+		}
+		xValues := []float64{}
+		yValues := []float64{}
+		for _, u := range *col.getID(p.id).data {
+			xValues = append(xValues, u.time)
+			yValues = append(yValues, float64(u.value))
+		}
+		data := [][]float64{
+			xValues,
+			yValues,
+		}
+		uMap[p.id] = data
+	}
+	return uMap
 }
 
 // helper
