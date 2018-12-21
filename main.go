@@ -11,15 +11,18 @@ import (
 	"sort"
 	"strconv"
 
+	"gonum.org/v1/plot/vg"
+
 	"github.com/AvraamMavridis/randomcolor"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/plotutil"
+	"gonum.org/v1/plot/vg/draw"
 
 	"gonum.org/v1/plot"
 )
 
 var (
-	stimuliXValues = map[int]stimulus{
+	stimuli = map[int]stimulus{
 		0: stimulus{
 			xValue: 0.0,
 			name:   "Schwarz",
@@ -57,7 +60,13 @@ var (
 			name:   "Schwarz",
 		},
 	}
-	timeLimit = -1.0
+	sFont, _       = vg.MakeFont("Courier", vg.Points(10))
+	lFont, _       = vg.MakeFont("Courier", vg.Points(14))
+	smallDrawStyle = draw.TextStyle{Font: sFont}
+	largeDrawStyle = draw.TextStyle{Font: lFont}
+
+	timeLimit   = -1.0
+	userToPrint = []int{1, 2, 10}
 )
 
 const (
@@ -83,42 +92,30 @@ func main() {
 	intmap := refactorMap(&userMap)
 	for i, coords := range intmap {
 
-		if i == 6 || i == 8 {
+		if len(userToPrint) != 0 && !contains(userToPrint, i) {
 			continue
 		}
-		switch i {
-		case 1:
-			{
-			}
-		case 2:
-			{
-			}
-		default:
-			continue
-		}
+
 		fmt.Printf("printing proband: %d\n", i)
 		label := []string{}
 
 		limitIndex := 0
 		for i := range coords[0] {
-			//fmt.Printf("X Value : %.2f\n", coords[0][i])
 			if coords[0][i] >= timeLimit {
-				fmt.Printf("stop at %.2f", coords[0][i])
 				limitIndex = i
 				break
 			}
 		}
-		if timeLimit <= 0 {
+		if timeLimit < 0 {
 			limitIndex = len(coords[1]) - 1
 		}
 		xys := make(plotter.XYs, limitIndex)
 		fmt.Println(limitIndex)
 		for i := range coords[1][:limitIndex] {
-			//fmt.Printf("printing X Value: %.2f\n", coords[0][i])
 			xys[i].X = coords[0][i]
 			xys[i].Y = coords[1][i]
 
-			label = append(label, fmt.Sprintf("x: %.1f\ny: %.1f ", coords[0][i], coords[1][i]))
+			label = append(label, fmt.Sprintf("%.1f\n%.1f ", coords[0][i], coords[1][i]))
 		}
 		label[0] = fmt.Sprintf("P%d\n", i) + label[0]
 		xyLabeller := plotter.XYLabels{
@@ -133,13 +130,19 @@ func main() {
 		rdColor := randomcolor.GetRandomColorInRgb()
 		l.Color = color.RGBA{R: uint8(rdColor.Red), G: uint8(rdColor.Green), B: uint8(rdColor.Blue), A: 255}
 		s.Color = color.RGBA{R: uint8(rdColor.Red), G: uint8(rdColor.Green), B: uint8(rdColor.Blue), A: 255}
+		ts := make([]draw.TextStyle, xyLabeller.Len())
+		for i := range labelPlot.TextStyle {
+			ts[i] = smallDrawStyle
+		}
+		labelPlot.TextStyle = ts
 		plot.Add(l, labelPlot)
 		plot.Legend.Add(fmt.Sprintf("Proband: %d", i), l, s)
 	}
 
-	addStimuli(plot, 115)
+	addStimuli(plot)
 	plot.X.Tick.Marker = addTicks(plot.X.Tick.Marker)
 	plot.Y.Tick.Marker = addTicks(plot.Y.Tick.Marker)
+	setFrameFonts(plot)
 	savePlot(plot)
 
 }
@@ -216,8 +219,6 @@ func readCSV(filename string) userCollection {
 			time:  t,
 		}
 		*col.getID(r[1]).data = append(*col.getID(r[1]).data, newB)
-
-		//fmt.Printf("record %d: \n %v\n", i, r)
 
 	}
 	for _, u := range *col.userColl {
@@ -348,19 +349,47 @@ func refactorMap(m *map[string][][]float64) map[int][][]float64 {
 	return intMap
 }
 
-func addStimuli(plot *plot.Plot, maxY int) {
-
+func addStimuli(plot *plot.Plot) {
 	for i := 0; i < 9; i++ {
 		xys := make(plotter.XYs, 2)
-		xys[0].Y = 70
-		xys[0].X = stimuliXValues[i].xValue
-		xys[1].Y = float64(maxY)
-		xys[1].X = stimuliXValues[i].xValue
+		xys[0].Y = 60
+		xys[0].X = stimuli[i].xValue
+		xys[1].Y = plot.Y.Max
+		xys[1].X = stimuli[i].xValue
 		l, _ := plotter.NewLine(xys)
-		l.DashOffs = 2
+		l.Dashes = []vg.Length{5, 5}
 		l.Color = plotutil.Color(4)
-		fmt.Printf("adding line %+v\n", l)
-		plot.Add(l)
+		xyLabels := plotter.XYLabels{
+			XYs:    xys,
+			Labels: []string{stimuli[i].name, ""},
+		}
+		labels, _ := plotter.NewLabels(xyLabels)
+		ts := make([]draw.TextStyle, xyLabels.Len())
+		for i := range labels.TextStyle {
+			ts[i] = largeDrawStyle
+		}
+		labels.TextStyle = ts
+		plot.Add(l, labels)
 	}
 
+}
+
+func contains(slice []int, number int) bool {
+	for _, v := range slice {
+		if v == number {
+			return true
+		}
+	}
+	return false
+}
+
+func setFrameFonts(plot *plot.Plot) {
+	plot.Title.Font = lFont
+	plot.X.Label.TextStyle = largeDrawStyle
+	plot.Y.Label.TextStyle = largeDrawStyle
+	plot.X.Tick.Label.Font = lFont
+	plot.Y.Tick.Label.Font = lFont
+	plot.Legend.Font = sFont
+	plot.Legend.Top = true
+	plot.Legend.Left = true
 }
