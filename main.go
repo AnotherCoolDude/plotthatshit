@@ -60,19 +60,25 @@ var (
 			name:   "Schwarz",
 		},
 	}
+	lPlacement = legendPlacement{
+		top:     true,
+		left:    true,
+		xOffset: 120,
+	}
+
 	sFont, _       = vg.MakeFont("Courier", vg.Points(10))
 	lFont, _       = vg.MakeFont("Courier", vg.Points(14))
 	smallDrawStyle = draw.TextStyle{Font: sFont}
 	largeDrawStyle = draw.TextStyle{Font: lFont}
 
-	timeLimit   = -1.0
-	userToPrint = []int{1, 2, 10}
+	timeLimit   = 128.0
+	userToPrint = []int{1, 2, 3, 4, 5, 7, 9, 10, 11, 12, 13}
 )
 
 const (
-	imgWidth       = 3072
+	imgWidth       = 2048
 	imgHeight      = 1024
-	yStartingValue = 70
+	yStartingValue = 45
 )
 
 func main() {
@@ -166,6 +172,12 @@ type heartBeatData struct {
 type stimulus struct {
 	xValue float64
 	name   string
+}
+
+type legendPlacement struct {
+	top     bool
+	left    bool
+	xOffset int
 }
 
 // funcs
@@ -352,6 +364,11 @@ func refactorMap(m *map[string][][]float64) map[int][][]float64 {
 
 func addStimuli(plot *plot.Plot) {
 	for i := 0; i < 9; i++ {
+
+		if stimuli[i].xValue >= timeLimit {
+			continue
+		}
+
 		xys := make(plotter.XYs, 2)
 		xys[0].Y = yStartingValue
 		xys[0].X = stimuli[i].xValue
@@ -391,6 +408,7 @@ func setFrameFonts(plot *plot.Plot) {
 	plot.X.Tick.Label.Font = lFont
 	plot.Y.Tick.Label.Font = lFont
 	plot.Legend.Font = sFont
-	plot.Legend.Top = true
-	plot.Legend.Left = true
+	plot.Legend.Top = lPlacement.top
+	plot.Legend.Left = lPlacement.left
+	plot.Legend.XOffs = vg.Length(lPlacement.xOffset)
 }
