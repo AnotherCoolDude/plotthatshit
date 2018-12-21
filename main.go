@@ -70,8 +70,9 @@ var (
 )
 
 const (
-	imgWidth  = 2048
-	imgHeight = 1024
+	imgWidth       = 3072
+	imgHeight      = 1024
+	yStartingValue = 70
 )
 
 func main() {
@@ -352,7 +353,7 @@ func refactorMap(m *map[string][][]float64) map[int][][]float64 {
 func addStimuli(plot *plot.Plot) {
 	for i := 0; i < 9; i++ {
 		xys := make(plotter.XYs, 2)
-		xys[0].Y = 60
+		xys[0].Y = yStartingValue
 		xys[0].X = stimuli[i].xValue
 		xys[1].Y = plot.Y.Max
 		xys[1].X = stimuli[i].xValue
